@@ -1,4 +1,5 @@
 #!/bin/bash -Ce
+export LC_ALL="C"
 
 if [ -z "$1" ]
 then
@@ -40,6 +41,7 @@ fi
 
 if [ "$1" == "-debug" ] || [ "$2" == "-debug" ] || [ "$3" == "-debug" ]; then
   echo "###########"
+  locale
   echo "INFILE: "$INFILE;
   echo "OUTFILE: "$OUTFILE;
   echo "INFILENAME: "$INFILENAME
@@ -63,7 +65,7 @@ for i in "${SEPARATORS[@]}"; do
         RANGE="{1,2}"
     fi
 
-    $COMMAND "$INFILE" | grep -E "[-[:alnum:]\_\.]+[\.]*[-[:alnum:]\_\.]*@$RANGE[-[:alnum:]\_\.]*$i" | sed -E "s/(.*)$i+//" >> "$OUTFILE";
+    $COMMAND "$INFILE" | sed -En "s/^[-[:alnum:]\ \.\!\#\$\%\&\*\+\/\=\?\^\_\`\{\|\}\~]+@$RANGE[[:print:]]+$i//p" >> "$OUTFILE";
 
     #build string for matching all SEPARATORS
     SSEPARATORS+=$i"|"
