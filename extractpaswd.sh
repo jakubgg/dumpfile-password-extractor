@@ -1,7 +1,19 @@
 #!/bin/bash -e
 export LC_ALL="C"
 
-if [ -z "$1" ]
+if [[ "$2" == "-debug" ]] || [[ "$3" == "-debug" ]]; then
+  DEBUGMODE=1
+  if [[ "$2" == "-debug" ]]; then
+    # dirty hack to fix assigning TARGETDIR
+    # TODO: add proper params handling
+    params=( "$@" );
+    unset "params[1]";
+    set -- "${params[@]}";
+  fi
+  echo "DEBUGMODE ON"
+fi
+
+if [[ -z "$1" ]]
 then
     echo "Dumpfile password extractor v.1.0"
     echo "Usage: extractpaswd source_file
@@ -9,13 +21,13 @@ then
     exit 1;
 fi
 
-if [ ! -f "$1" ]
+if [[ ! -f "$1" ]]
 then
     echo "Given input is not a regular file"
     exit 1;
 fi
 
-if [ "$2" ] && [ ! -d "$2" ]
+if [[ "$2" ]] && [[ $DEBUGMODE == 0 ]] && [[ ! -d "$2" ]]
 then
     echo "Given path is not a valid directory"
     exit 1;
@@ -24,11 +36,14 @@ fi
 INFILE="$1"
 INFILENAME=$(basename "$INFILE")
 INFILEDIRNAME=$(dirname "$INFILE")
-TARGETDIR=${2:-"$INFILEDIRNAME"}"/"
+TARGETDIR=${2:-"$INFILEDIRNAME"}
+TARGETDIR=${TARGETDIR%%\/}"/" #normalise TARGETDIR
 OUTFILE="$TARGETDIR${INFILENAME%%.*}-out.txt"
 REMAINSFILE="$TARGETDIR${INFILENAME%%.*}-out-remains.txt"
 WEAKFILE="$TARGETDIR${INFILENAME%%.*}-out-weak-"
 SEPARATORS=( "\|" ":" "\;" )
+PATTERN="[[:print:]]+@+[[:print:]]+";
+DEBUGMODE=${DEBUGMODE:-0}
 
 if hash pv 2>/dev/null; then
    COMMAND="pv";
@@ -41,7 +56,7 @@ For now we're gonna use 'cat' instead.";
   COMMAND="cat";
 fi
 
-if [ "$1" == "-debug" ] || [ "$2" == "-debug" ] || [ "$3" == "-debug" ]; then
+if [[ $DEBUGMODE == 1 ]]; then
   echo "###########";
   locale
   echo "INFILE: $INFILE";
@@ -52,57 +67,37 @@ if [ "$1" == "-debug" ] || [ "$2" == "-debug" ] || [ "$3" == "-debug" ]; then
   echo "REMAINSFILE: $REMAINSFILE";
   echo "WEAKFILE: $WEAKFILE";
   echo "${SEPARATORS[*]}";
-  echo "$($COMMAND -h)";
+  # echo "$($COMMAND -h)";
   echo "###########";
 fi
-
+exit
 echo "[$(date '+%H:%M:%S')] Starting parsing file '$INFILE'"
-#extract main 3 groups of passwords
-# for i in "${SEPARATORS[@]}"; do
-#     RANGE="{1}"
-#     echo "[$(date '+%H:%M:%S')] Parsing lines with '${i##\\}' separator"
-#
-#     #special rule for weird formatting of yahoo emails with ":" separator
-#     if [ $i == ":" ]; then
-#         RANGE="{1,2}"
-#     fi
-#
-#     #"$COMMAND" "$INFILE" | sed -En "s/^[-[:alnum:]\ \.\!\#\$\%\&\*\+\/\=\?\^\_\`\{\|\}\~]+@$RANGE[[:print:]]+$i//p" >> "$OUTFILE";
-#
-#     #build string for matching all SEPARATORS
-#     SSEPARATORS+=$i"|"
-# done
+
 echo "[$(date '+%H:%M:%S')] Parsing lines with '${SEPARATORS[*]}' separators"
-"$COMMAND" "$INFILE" | perl -ne 'print if s/([[:print:]]+@+[[:print:]]+[:])|([[:print:]]+@+[[:print:]]+[;])|([[:print:]]+@+[[:print:]]+[|])//g' > "$OUTFILE";
-# "$COMMAND" "$INFILE" | sed -En 's/([[:print:]]+@+[[:print:]]+[:])|([[:print:]]+@+[[:print:]]+[;])|([[:print:]]+@+[[:print:]]+[|])//p' > "$OUTFILE";
-# parallel -a "$INFILE" -k --block 100M --pipe-part --progress 'sed -En "s/([[:print:]]+@+[[:print:]]+[:])|([[:print:]]+@+[[:print:]]+[;])|([[:print:]]+@+[[:print:]]+[|])//p"' > "$OUTFILE";
-# parallel -a "$INFILE" -k --block 100M --pipe-part --bar "perl -pe 's/([[:print:]]+@+[[:print:]]+[:])|([[:print:]]+@+[[:print:]]+[;])|([[:print:]]+@+[[:print:]]+[|])//'" > "$OUTFILE";
-# exit
-# echo ${SSEPARATORS%|};
-# exit
+"$COMMAND" "$INFILE" | perl -ne "print if s/(${PATTERN}[:])|(${PATTERN}[;])|(${PATTERN}[|])//g" > "$OUTFILE";
+
 #extract remaining lines for further proccessing
 echo "[$(date '+%H:%M:%S')] Extracting remaining lines for further proccessing"
-# $COMMAND "$INFILE" | grep -Ev "[-[:alnum:]\_\.]+[\.]*[-[:alnum:]\_\.]*@{1,2}[-[:alnum:]\_\.]*[${SSEPARATORS%|}]{1}" > "$REMAINSFILE"
-# "$COMMAND" "$INFILE" | sed -En '/^[-[:alnum:]\ \.\!\#\$\%\&\*\+\/\=\?\^\_\`\{\|\}\~]+@{1,2}[[:print:]]+[${SSEPARATORS%|}]{1}/!p' > "$REMAINSFILE"
-"$COMMAND" "$INFILE" | perl -ne 'print if not /([[:print:]]+@+[[:print:]]+[:])|([[:print:]]+@+[[:print:]]+[;])|([[:print:]]+@+[[:print:]]+[|])/' > "$REMAINSFILE"
+"$COMMAND" "$INFILE" | perl -ne "print if not s/(${PATTERN}[:])|(${PATTERN}[;])|(${PATTERN}[|])//g" > "$REMAINSFILE"
 
-#exit
 #following secions extract flaky, weak patterns, possible crap
 #
 ## reversed pattern "pass:email"
 echo "[$(date '+%H:%M:%S')] Extracting reversed pattern 'pass:email'"
-# "$COMMAND" "$REMAINSFILE" | grep -E ":[-[:alnum:]\_\.]+[\.]*[-[:alnum:]\_\.]*@[-[:alnum:]\_\.]*" | tee -a "$TARGETDIR""reversed.txt" | sed -E "s/:(.*)+//" > "$WEAKFILE""reversed-patt.txt"
-"$COMMAND" "$REMAINSFILE" | perl -ne 'print if /([:][[:print:]]+@+[[:print:]]+)/' | tee -a "$TARGETDIR""tmp.txt" | perl -ne 'print if s/:(.*)+//' > "$WEAKFILE""reversed-patt.txt"
+"$COMMAND" "$REMAINSFILE" | perl -ne "print if s/([:]${PATTERN})//" > "$WEAKFILE""reversed-patt.txt"
+cp "$WEAKFILE""reversed-patt.txt" "$TARGETDIR""tmp.txt"
+
 #
 ## email-ish pattern, allows illegal characters, missing parts
 echo "[$(date '+%H:%M:%S')] Extracting weak candidates"
-# "$COMMAND" "$REMAINSFILE" | grep -E "[[:print:]@{0}]*@{1}[[:print:]]*:" | tee -a "$TARGETDIR""reversed.txt" | sed -E 's/(.*):+//' > "$WEAKFILE""weak-cand.txt"
-"$COMMAND" "$REMAINSFILE" | perl -ne 'print if /([[:print:]]+@+([:]))/' | tee -a "$TARGETDIR""tmp.txt" | perl -ne 'print if s/:(.*)+//' > "$WEAKFILE""weak-cand.txt"
+"$COMMAND" "$REMAINSFILE" | perl -ne 'print if s/([[:print:]]+@+([:]))//' > "$WEAKFILE""weak-cand.txt"
+cat "$WEAKFILE""weak-cand.txt" >> "$TARGETDIR""tmp.txt"
 
 echo "[$(date '+%H:%M:%S')] Preparing file with rejected candidates (for manual check)"
-"$COMMAND" "$REMAINSFILE" | grep -vFf "$TARGETDIR""tmp.txt" >> "$REMAINSFILE"".manual-check"
+"$COMMAND" "$REMAINSFILE" | grep -vFf "$TARGETDIR""tmp.txt" > "$REMAINSFILE"".manual-check3"
+
 echo "[$(date '+%H:%M:%S')] Cleaning up temporary files"
 echo "[$(date '+%H:%M:%S')] ""$TARGETDIR""tmp.txt"
-# rm "$TARGETDIR""reversed.txt"
+rm "$TARGETDIR""tmp.txt"
 
 echo "[$(date '+%H:%M:%S')] Finished extracting"
