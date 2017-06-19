@@ -70,7 +70,7 @@ if [[ $DEBUGMODE == 1 ]]; then
   # echo "$($COMMAND -h)";
   echo "###########";
 fi
-exit
+
 echo "[$(date '+%H:%M:%S')] Starting parsing file '$INFILE'"
 
 echo "[$(date '+%H:%M:%S')] Parsing lines with '${SEPARATORS[*]}' separators"
