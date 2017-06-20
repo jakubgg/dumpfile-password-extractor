@@ -1,7 +1,7 @@
-#Dumpfile password extractor
+# Dumpfile password extractor
 This bash script can be used to extract passwords from most common dump/leak files.
 
-##Usage:
+## Usage:
 
 ```
 extractpaswd.sh source_file
@@ -41,7 +41,7 @@ The interesting switches are:
 `--block -1` - because the parts that have this settings are dealing with rather small files, they usually can be just chopped into amount of jobs equal to your number of available threads and run in one go. This setting literally means "chop input into only that many parts to provide each job -X tasks". So for 4 threads this means chop in 4, for 8 threads chop in 8 parts etc. You can change it to -2 or any other number but there is no real benefit if the files are small and actually you will probably lose some performance.
 
 
-##How it works:
+## How it works:
 TBD
 
 WARNING: The script is designed to work in non-destructive way. But you are using it at your own peril. I cannot be liable for Earth standing still, your cat getting possessed or your computer bursting in flames.
