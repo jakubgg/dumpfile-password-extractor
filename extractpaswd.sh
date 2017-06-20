@@ -15,7 +15,7 @@ fi
 
 if [[ -z "$1" ]]
 then
-    echo "Dumpfile password extractor v.1.0"
+    echo "Dumpfile password extractor v.1.3"
     echo "Usage: extractpaswd source_file
         extractpaswd source_file <target_directory>";
     exit 1;
@@ -67,7 +67,7 @@ if [[ $DEBUGMODE == 1 ]]; then
   echo "REMAINSFILE: $REMAINSFILE";
   echo "WEAKFILE: $WEAKFILE";
   echo "${SEPARATORS[*]}";
-  # echo "$($COMMAND -h)";
+  echo "$COMMAND";
   echo "###########";
 fi
 
@@ -94,7 +94,7 @@ echo "[$(date '+%H:%M:%S')] Extracting weak candidates"
 cat "$WEAKFILE""weak-cand.txt" >> "$TARGETDIR""tmp.txt"
 
 echo "[$(date '+%H:%M:%S')] Preparing file with rejected candidates (for manual check)"
-"$COMMAND" "$REMAINSFILE" | grep -vFf "$TARGETDIR""tmp.txt" > "$REMAINSFILE"".manual-check3"
+"$COMMAND" "$REMAINSFILE" | grep -vFf "$TARGETDIR""tmp.txt" > "$REMAINSFILE"".manual-check"
 
 echo "[$(date '+%H:%M:%S')] Cleaning up temporary files"
 echo "[$(date '+%H:%M:%S')] ""$TARGETDIR""tmp.txt"
