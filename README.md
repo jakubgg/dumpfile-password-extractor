@@ -25,9 +25,11 @@ Parallel version of this script relies on 'parallel' package (https://www.gnu.or
 Before you can use the parallel version you have to install `parallel`. It is available precompiled for a lot of platforms (just ask your local package vendor like yum, apt, or homebrew).
 
 Differences:
-Standard         Parallel
-it's awesome     it's awesome x (number of threads)
-it's quite fast  it's quite fast x (number of threads)
+
+Standard | Parallel
+------|------
+it's awesome | it's awesome x (number of threads)
+it's quite fast | it's quite fast x (number of threads)
 
 I think you get the gist.
 
