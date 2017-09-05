@@ -1,6 +1,11 @@
 # Dumpfile password extractor
 This bash script can be used to extract passwords from most common dump/leak files.
 
+## Note
+
+Test branches are experimental, might be unfinished or might cause infinite regression of reality and the end of the universe.
+Please check the code before you use the Test branch.
+
 ## Usage:
 
 ```
