@@ -42,7 +42,7 @@ OUTFILE="$TARGETDIR${INFILENAME%%.*}-out.txt"
 REMAINSFILE="$TARGETDIR${INFILENAME%%.*}-out-remains.txt"
 WEAKFILE="$TARGETDIR${INFILENAME%%.*}-out-weak-"
 SEPARATORS=( "\|" ":" "\;" )
-PATTERN="[[:print:]]+@+[[:print:]]+";
+PATTERN="[[:print:]]+\@+[[:print:]]+";
 DEBUGMODE=${DEBUGMODE:-0}
 
 if hash pv 2>/dev/null; then
@@ -74,30 +74,63 @@ fi
 echo "[$(date '+%H:%M:%S')] Starting parsing file '$INFILE'"
 
 echo "[$(date '+%H:%M:%S')] Parsing lines with '${SEPARATORS[*]}' separators"
-"$COMMAND" "$INFILE" | perl -ne "print if s/(${PATTERN}[:])|(${PATTERN}[;])|(${PATTERN}[|])//g" > "$OUTFILE";
 
-#extract remaining lines for further proccessing
+"$COMMAND" "$INFILE" | php -r '
+while($line = fgets(STDIN)){
+    $string = preg_replace("/('${PATTERN}'[:])|('${PATTERN}'[;])|('${PATTERN}'[|])/","",$line);
+    echo ( ($string !== $line) ? $string : null );
+}
+' > "$OUTFILE"
+
+# #extract remaining lines for further proccessing
 echo "[$(date '+%H:%M:%S')] Extracting remaining lines for further proccessing"
-"$COMMAND" "$INFILE" | perl -ne "print if not s/(${PATTERN}[:])|(${PATTERN}[;])|(${PATTERN}[|])//g" > "$REMAINSFILE"
 
-#following secions extract flaky, weak patterns, possible crap
-#
-## reversed pattern "pass:email"
+"$COMMAND" "$INFILE" | php -r '
+while($line = fgets(STDIN)){
+    echo ( (preg_match("/('${PATTERN}'[:])|('${PATTERN}'[;])|('${PATTERN}'[|])/",$line)) ? null : $line );
+}
+' > "$REMAINSFILE"
+
+# #following secions extract flaky, weak patterns, possible crap
+# #
+# ## reversed pattern "pass:email"
 echo "[$(date '+%H:%M:%S')] Extracting reversed pattern 'pass:email'"
-"$COMMAND" "$REMAINSFILE" | perl -ne "print if s/([:]${PATTERN})//" > "$WEAKFILE""reversed-patt.txt"
+# "$COMMAND" "$REMAINSFILE" | perl -ne "print if s/([:]${PATTERN})//" > "$WEAKFILE""reversed-patt.txt"
+
+"$COMMAND" "$REMAINSFILE" | php -r '
+while($line = fgets(STDIN)){
+    $string = preg_replace("/([:]'${PATTERN}')|([;]'${PATTERN}')|([|]'${PATTERN}')/","",$line);
+    echo ( ($string !== $line) ? $string : null );
+}
+' > "$WEAKFILE""reversed-patt.txt"
+
 cp "$WEAKFILE""reversed-patt.txt" "$TARGETDIR""tmp.txt"
-
 #
-## email-ish pattern, allows illegal characters, missing parts
+# #
+# ## email-ish pattern, allows illegal characters, missing parts
 echo "[$(date '+%H:%M:%S')] Extracting weak candidates"
-"$COMMAND" "$REMAINSFILE" | perl -ne 'print if s/([[:print:]]+@+([:]))//' > "$WEAKFILE""weak-cand.txt"
+# "$COMMAND" "$REMAINSFILE" | perl -ne 'print if s/([[:print:]]+@+([:]))//' > "$WEAKFILE""weak-cand.txt"
+"$COMMAND" "$REMAINSFILE" | php -r '
+while($line = fgets(STDIN)){
+    $string = preg_replace("/([[:print:]]+\@+([:]))/","",$line);
+    echo ( ($string !== $line) ? $string : null );
+}
+' > "$WEAKFILE""weak-cand.txt"
 cat "$WEAKFILE""weak-cand.txt" >> "$TARGETDIR""tmp.txt"
-
+#
 echo "[$(date '+%H:%M:%S')] Preparing file with rejected candidates (for manual check)"
-"$COMMAND" "$REMAINSFILE" | grep -vFf "$TARGETDIR""tmp.txt" > "$REMAINSFILE"".manual-check"
+# "$COMMAND" "$REMAINSFILE" | grep -vFf "$TARGETDIR""tmp.txt" > "$REMAINSFILE"".manual-check"
+"$COMMAND" "$REMAINSFILE" | php -r '
+while($line = fgets(STDIN)){
+    $file = file_get_contents("'"$TARGETDIR""tmp.txt"'");
+    if (strpos($file,$line) === FALSE) {
+        echo $line;
+    }
+}
+' > "$REMAINSFILE"".manual-check"
 
-echo "[$(date '+%H:%M:%S')] Cleaning up temporary files"
-echo "[$(date '+%H:%M:%S')] ""$TARGETDIR""tmp.txt"
-rm "$TARGETDIR""tmp.txt"
-
+# echo "[$(date '+%H:%M:%S')] Cleaning up temporary files"
+# echo "[$(date '+%H:%M:%S')] ""$TARGETDIR""tmp.txt"
+# rm "$TARGETDIR""tmp.txt"
+#
 echo "[$(date '+%H:%M:%S')] Finished extracting"
